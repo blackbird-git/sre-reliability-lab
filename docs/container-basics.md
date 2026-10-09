@@ -18,6 +18,8 @@ We mapped local port 8080 to container port 80 to access the container through l
 
 A docker container may be stopped and started and any changes made will persist. When a docker container is removed and recreated, it is recreated from the source image. Any changes written to the container's filesystem do not persist. A way around this is to mount storage to the container where any file changes are written. These file changes persist with container removal.
 
+A container's writeable layer lives on disk when the container is stopped. This is how it survives stops/starts.
+
 # Container Storage vs bind mount
 See above. Bind mount is a way to mount a host directory (for example) to a directory on the container. By default this makes the host directory accessible and writeable.
 
