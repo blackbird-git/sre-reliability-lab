@@ -16,6 +16,13 @@ spec:
         - name: api
           image: sre-reliability-lab:0.1.0
           imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
           ports:
             - containerPort: 8000
           readinessProbe:
