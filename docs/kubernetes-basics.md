@@ -302,3 +302,53 @@ Correcting the source file prevents a later apply from reintroducing
 the failed configuration.
 
 Old ReplicaSets may remain at zero replicas as rollout history.
+
+## CPU and memory requests and limits
+
+Added per-container resources to the Deployment:
+
+```yaml
+resources:
+  requests:
+    cpu: "100m"
+    memory: "64Mi"
+  limits:
+    cpu: "500m"
+    memory: "128Mi"
+```
+
+Requests guide scheduling:
+
+- `100m` means 0.1 CPU.
+- `64Mi` means 64 MiB of memory.
+- The scheduler accounts for these requests when choosing a node.
+- Requests are not usage ceilings.
+
+Limits constrain usage:
+
+- The CPU limit of `500m` permits up to 0.5 CPU; excess demand is throttled.
+- Exceeding the memory limit of `128Mi` can cause an out-of-memory kill.
+- A container restart after an OOM kill differs from replacing an entire Pod.
+
+These are initial lab values, not measurements of the application's needs.
+
+Applied the configuration:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl rollout status deployment/lab-api --timeout=90s
+kubectl get pods
+```
+
+Changing resources in the Pod template triggered a rollout.
+Both replacement Pods became ready with zero restarts.
+
+Verified the stored resource settings:
+
+```bash
+kubectl get deployment lab-api \
+  -o jsonpath='{.spec.template.spec.containers[0].resources}'
+```
+
+The output matched the requested configuration. This verifies configuration
+and successful startup, not actual CPU or memory consumption.
