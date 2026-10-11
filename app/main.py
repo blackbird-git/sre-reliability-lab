@@ -1,16 +1,49 @@
 # Load built-in os module, allowing script to interact directly with the operating system, including reading environment variables.
 import os
 
-# Import flask framework
+# Import flask framework. Flask is a lightweight web framework for Python that allows you to build web applications quickly and easily.
 from flask import Flask
+
+# Import the make_wsgi_app function from the prometheus_client library, which is used to create a WSGI application for exposing Prometheus metrics.
+from prometheus_client import make_wsgi_app
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
+# Import the Counter class from the prometheus_client library, which is used to create a counter metric for tracking the number of requests to the application.
+from flask import Flask, request
+from prometheus_client import Counter, make_wsgi_app
 
 # Create the Application
 app = Flask(__name__)
 
+# Serve Prometheus metrics separately from the Flask application routes.
+app.wsgi_app = DispatcherMiddleware(
+    app.wsgi_app,
+    {"/metrics": make_wsgi_app()},
+)
+
+# Create a Prometheus counter metric to track the total number of HTTP requests received by the application, labeled by method, route, and status code. 
+HTTP_REQUESTS = Counter(
+    "lab_http_requests_total",
+    "Total HTTP responses by method, route, and status",
+    ["method", "route", "status"],
+)
+
+@app.after_request
+def record_request(response):
+    route = request.url_rule.rule if request.url_rule else "unmatched"
+
+    HTTP_REQUESTS.labels(
+        method=request.method,
+        route=route,
+        status=str(response.status_code),
+    ).inc()
+
+    return response
+
 # Route an HTTP GET request to the root URL ("/") and return a JSON response
 @app.get("/")
 def index():
-    return {"service": "sre-reliability-lab", "version": "0.1.0"}
+    return {"service": "sre-reliability-lab", "version": "0.2.0"}
 
 # Route an HTTP GET request to the "/healthz" URL and return a JSON response indicating the health status of the service
 # Kubernetes/Docker ecosystem uses this naming convention for health checks, so we will use it here as well.
@@ -26,4 +59,6 @@ def readyz():
         return {"status": "ready"}, 200
     else:
         return {"status": "not ready"}, 503
+
+
     

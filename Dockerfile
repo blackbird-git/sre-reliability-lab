@@ -19,4 +19,4 @@ USER appuser
 EXPOSE 8000
 
 # Use Gunicorn as the WSGI HTTP server to serve the Flask application. The command specifies that Gunicorn should bind to all network interfaces on port 8000, use 2 worker processes to handle requests, and log access information to standard output. The application instance is specified as "app.main:app", which tells Gunicorn where to find the Flask application object.
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--access-logfile", "-", "app.main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--access-logfile", "-", "app.main:app"]
