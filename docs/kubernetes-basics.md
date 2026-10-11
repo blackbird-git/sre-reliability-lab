@@ -172,3 +172,133 @@ Running, ready, and reachable describe different conditions.
 Readiness controls eligibility for normal Service traffic. It does not
 block direct requests to a Pod, and a readiness failure does not itself
 restart the container.
+
+
+
+## Scaling and configuration drift
+
+Scaled the live Deployment from two replicas to three:
+
+```bash
+kubectl scale deployment/lab-api --replicas=3
+kubectl rollout status deployment/lab-api --timeout=90s
+kubectl get pods
+```
+
+The local deployment.yaml still declared `replicas: 2`.
+
+Reapplying it restored the count to two:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+```
+
+An imperative command changes the live Kubernetes object, but does not
+update the local YAML. Keep the intended configuration in Git.
+
+### Object terminology
+
+I initially called `lab-api` a cluster. The actual structure is:
+
+| Object | Name | Responsibility |
+|---|---|---|
+| Cluster | sre-lab | Entire Kubernetes environment |
+| Node | sre-lab-control-plane | Runs cluster components and workloads |
+| Deployment | lab-api | Manages application replicas and rollouts |
+| Service | lab-api | Provides stable access to matching Pods |
+| Pods | Generated lab-api names | Run application containers |
+
+A Pod can contain multiple containers. They share the Pod's network
+namespace and can communicate through localhost. They can also share
+volumes when configured.
+
+Separate application replicas normally run in separate Pods. Multiple
+containers in one Pod are typically tightly related components.
+
+## Failed rollout
+
+Changed the Deployment image to an unavailable version:
+
+```yaml
+image: sre-reliability-lab:0.2.0
+imagePullPolicy: Never
+```
+
+Applied the change and inspected the rollout:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl rollout status deployment/lab-api --timeout=30s
+kubectl get pods
+kubectl get deployment lab-api
+kubectl get replicasets
+```
+
+The new Pod reported `ErrImageNeverPull`.
+
+Its events explained that image 0.2.0 was not present on the node and
+the Never policy prohibited downloading it.
+
+The container never started, so its health probes did not run.
+This was an image availability failure, rather than an application
+readiness failure.
+
+### Availability during the stalled rollout
+
+Two old Pods remained ready while one new Pod failed to start.
+
+The Deployment showed:
+
+```text
+READY   UP-TO-DATE   AVAILABLE
+2/2     1            2
+```
+
+- READY and AVAILABLE described the healthy old replicas.
+- UP-TO-DATE counted the Pod using the new template, even though
+  its container could not start.
+
+For two replicas, the default rolling-update settings permit one extra
+Pod and require both replicas to remain available during this rollout.
+
+A request through the Service returned:
+
+```text
+200
+{"service":"sre-reliability-lab","version":"0.1.0"}
+```
+
+The rollout stalled, but the previous application version remained
+available. Ready counts alone do not prove that a rollout succeeded.
+
+## Rollback and recovery
+
+Rolled back the live Deployment:
+
+```bash
+kubectl rollout undo deployment/lab-api
+kubectl rollout status deployment/lab-api --timeout=90s
+```
+
+Also restored the image in the local YAML to 0.1.0 and reapplied it:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl get pods
+kubectl get deployment lab-api
+```
+
+Verified:
+
+```text
+READY   UP-TO-DATE   AVAILABLE
+2/2     2            2
+```
+
+The failing Pod was removed, and the two original healthy Pods remained.
+
+Rollback changes the live object; it does not edit local YAML.
+Correcting the source file prevents a later apply from reintroducing
+the failed configuration.
+
+Old ReplicaSets may remain at zero replicas as rollout history.
