@@ -55,7 +55,7 @@ def healthz():
 # The "true" value inside getenv() is the default value if the environment variable "APP_READY" is not set. If the value of "APP_READY" is "true", the service is considered ready and returns a 200 status code. Otherwise, it returns a 503 status code indicating that the service is not ready.
 @app.get("/readyz")
 def readyz():
-    if os.getenv("APP_READY", "false") == "true":
+    if os.getenv("APP_READY", "true") == "true":
         return {"status": "ready"}, 200
     else:
         return {"status": "not ready"}, 503
