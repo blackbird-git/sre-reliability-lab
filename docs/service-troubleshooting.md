@@ -80,3 +80,42 @@ Result:
 - Reapplying correct YAML can restore a manually changed live object.
 - In this lab, Prometheus discovers Pods directly, so successful metrics
   scrapes would not prove the application Service works.
+
+  ## Liveness probe misconfiguration
+
+Created a separate test Pod named lab-api-liveness, labeled
+app=lab-api-liveness so the application Service would not select it.
+
+Set APP_READY=true and retained the readiness check on /readyz.
+Deliberately configured the liveness probe to request /does-not-exist.
+
+### Evidence
+
+- Pod was Running and Ready.
+- Liveness requests returned HTTP 404.
+- Restart Count increased.
+- Events explicitly reported that the failed liveness probe caused
+  Kubernetes to restart the container.
+- The previous container exited with code 0: a graceful shutdown
+  can still result from Kubernetes terminating it.
+
+The container restarted within the same Pod; Kubernetes did not create
+a replacement Pod.
+
+### Important distinction
+
+The probe configuration determines Kubernetes' action, not the URL name.
+
+- Repeated readiness failures exclude the Pod from normal Service traffic.
+- Repeated liveness failures cause the container to restart.
+
+Using /readyz as a liveness check could cause unnecessary restarts during
+temporary unreadiness.
+
+### Recovery
+
+Deleted the test Pod, corrected its liveness path to /healthz,
+and recreated it.
+
+Verified Ready 1/1 and zero restarts after approximately one minute.
+Deleted the test Pod after verification.

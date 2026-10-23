@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lab-api-liveness
+  labels:
+    app: lab-api-liveness
+spec:
+  containers:
+    - name: api
+      image: sre-reliability-lab:0.2.0
+      imagePullPolicy: Never
+      env:
+        - name: APP_READY
+          value: "true"
+      ports:
+        - containerPort: 8000
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: 8000
+        initialDelaySeconds: 2
+        periodSeconds: 5
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 8000
+        initialDelaySeconds: 5
+        periodSeconds: 10
