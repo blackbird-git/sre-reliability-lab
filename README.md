@@ -45,6 +45,23 @@ Grafana, and GitHub Actions.
 - Introduced a controlled readiness regression, observed CI fail,
   and verified the correction returned it to green.
 
+### Troubleshooting and AI-assisted investigation
+
+- Diagnosed and corrected a Service selector mismatch by comparing
+  Pod labels, Service selectors, and EndpointSlices.
+- Investigated container restarts caused by a misconfigured liveness probe
+  and verified the corrected configuration.
+- Built a read-only Bash diagnostic collector for Pod status, Service
+  configuration, endpoints, events, and application logs.
+- Created a reusable AI investigation prompt that separates observed
+  facts, hypotheses, missing evidence, and corrective actions.
+- Tested the workflow against a controlled Service failure and verified
+  recovery after engineer-reviewed remediation.
+
+See the [investigation prompt](docs/ai-investigation-prompt.md),
+[worked example](docs/ai-investigation-example.md), and
+[diagnostic collector](scripts/collect-diagnostics.sh).
+
 ## Architecture
 
 ```mermaid
@@ -96,3 +113,4 @@ This is a learning environment, not a production deployment.
 - Alert evaluation is configured; external notifications are not.
 - One Gunicorn worker per application container avoids the need for
   multiprocess counter aggregation in this lab.
+- AI-assisted investigation is manually operated; the collector does not call an AI service or execute corrective actions automatically.
