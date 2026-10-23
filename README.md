@@ -78,6 +78,12 @@ and recovery steps. Exercises include:
 - Grafana configuration restored after Pod replacement.
 - Application regression detected by CI.
 
+## Related project
+
+[Terraform AWS Infrastructure Lab](https://github.com/blackbird-git/terraform-lab):
+VPC networking, two EC2 nginx servers across Availability Zones,
+and an Application Load Balancer with security-group-based backend access.
+
 ## Scope and limitations
 
 This is a learning environment, not a production deployment.

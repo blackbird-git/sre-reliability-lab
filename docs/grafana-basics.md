@@ -180,3 +180,115 @@ contain metrics history or the Prometheus data-source configuration.
 
 Grafana's emptyDir data is lost if its Pod is removed, so the export
 provides a recoverable dashboard definition.
+
+## Reproducible Grafana provisioning
+
+### Problem
+
+Grafana used emptyDir storage, so replacing its Pod removed its database,
+including manually configured data sources and dashboards.
+
+We moved the required configuration into files stored in Git and
+Kubernetes ConfigMaps.
+
+### Data-source provisioning
+
+Created `k8s/grafana-datasource.yaml` with:
+
+- Prometheus URL: http://prometheus:9090
+- Data-source UID: ag0xg0rcsy9dsb
+- Expected scrape interval: 15s
+- UI editing disabled
+
+Reused the UID referenced by the exported dashboard so its panels could
+find the recreated data source.
+
+Mounted the ConfigMap at:
+
+```text
+/etc/grafana/provisioning/datasources
+```
+
+Grafana reads these provisioning files during startup.
+
+The interval setting informs Grafana's queries; it does not change
+Prometheus's scrape schedule.
+
+### Troubleshooting: the Deployment had not changed
+
+Initially, the browser still showed the old dashboards.
+
+Inspection showed:
+
+- The Grafana Pod was still 26 hours old.
+- The Deployment remained at revision 1.
+- The new configuration mount was absent from the live Deployment.
+
+`kubectl rollout status` reported success for the existing configuration.
+It did not prove that the intended local edits had been applied.
+
+Saved and applied the updated Deployment. A new Pod appeared, and its
+fresh database contained no dashboards.
+
+Verified that the Prometheus data source existed automatically, then
+successfully imported the exported dashboard.
+
+### Dashboard provisioning
+
+Generated a ConfigMap manifest from the dashboard JSON:
+
+```bash
+kubectl create configmap grafana-dashboard \
+  --from-file=sre-reliability-lab.json=dashboards/sre-reliability-lab.json \
+  --dry-run=client -o yaml > k8s/grafana-dashboard.yaml
+```
+
+`--dry-run=client` generates the object locally. It does not create it
+in Kubernetes. The shell redirect saves the YAML to a file.
+
+Applied that manifest and a dashboard-provider ConfigMap.
+
+The provider tells Grafana to load JSON from:
+
+```text
+/var/lib/grafana/dashboards
+```
+
+It places the dashboard in the Labs folder, checks files every 10 seconds,
+and disables saving UI changes.
+
+Mounted:
+
+| Configuration | Container directory |
+|---|---|
+| Data-source instructions | /etc/grafana/provisioning/datasources |
+| Dashboard-provider instructions | /etc/grafana/provisioning/dashboards |
+| Dashboard JSON | /var/lib/grafana/dashboards |
+
+### Verification
+
+Reviewed the Deployment changes before applying:
+
+```bash
+kubectl diff -f k8s/grafana-deployment.yaml
+```
+
+Applied the Deployment and waited for its rollout.
+
+After reconnecting the port-forward, the replacement Grafana Pod
+automatically contained:
+
+- The Prometheus data source.
+- The SRE Reliability Lab dashboard in the Labs folder.
+- Working dashboard panels.
+
+No manual data-source creation or dashboard import was required.
+
+### Limits and source of truth
+
+This recreates configuration; it does not preserve Grafana's database,
+changed passwords, or Prometheus metric history.
+
+The dashboard JSON is the editable source. The generated ConfigMap
+manifest contains a copy and must be regenerated when that JSON changes.
+ConfigMap changes alone do not trigger a Deployment rollout.
