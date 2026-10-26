@@ -28,8 +28,10 @@ run_check "Service endpoints" \
     kubectl get endpointslices \
     -l kubernetes.io/service-name=lab-api -o yaml
 
-run_check "Deliberately missing Service" \
-    kubectl get service lab-does-not-exist
+run_check "Application Pod details and events" \
+    kubectl describe pods -l app=lab-api
 
-run_check "Check after failure" \
-    kubectl get deployment lab-api
+run_check "Recent application logs" \
+    kubectl logs -l app=lab-api \
+    --all-containers=true --prefix=true \
+    --tail=50 --since=15m
